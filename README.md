@@ -2,4 +2,4 @@
 Repository which contains the work of Industrial Robots and Systems, Semester 2 2026
 
 
-Be sure to link this repository to Pycharm on the Ubuntu side of the Legion laptop!
+The repository is linked to Pycharm in Ubuntu, commits to the repo can be made there.
