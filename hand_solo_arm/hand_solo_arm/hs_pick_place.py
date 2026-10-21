@@ -62,29 +62,20 @@ class HSWaypointRunner(Node):
 
     # --- script-style sequence (no arrays, no names) --------------------------
     def run(self):
-        # Waypoint 1
-        if not self._send_and_wait([0.0, 0.0, 1.57, 0.0, 1.57, 0.0]): return
-        time.sleep(10.0)
+        # Pick-up pose
+        if not self._send_and_wait([0.0, 0.174533, 1.91986, 1.0472, -1.5708, 0.0]): return
+        self.get_logger().info('Successfully moved to pick-up arm pose ✅')
+        time.sleep(10)
 
-        # Waypoint 2
-        if not self._send_and_wait([0.785, -0.5, 1.2, 0.0, 1.0, 0.0]): return
-        time.sleep(5)
+        # Carry pose
+        if not self._send_and_wait([0.0, -1.11701, 2.0944, 0.872665, -1.5708, 0.0]): return
+        self.get_logger().info('Successfully moved to carrying arm pose ✅')
+        time.sleep(20)
 
-        # Waypoint 3
-        if not self._send_and_wait([0.785, -0.8, 1.4, 0.0, 0.8, 0.0]): return
-        time.sleep(1.5)
-
-        # Waypoint 4
-        if not self._send_and_wait([0.785, -0.3, 1.2, 0.0, 1.0, 0.0]): return
-        time.sleep(0.5)
-
-        # Waypoint 5
-        if not self._send_and_wait([-0.785, -0.5, 1.2, 0.0, 1.0, 0.0]): return
-        time.sleep(0.5)
-
-        # Waypoint 6
-        if not self._send_and_wait([0.0, 0.0, 1.57, 0.0, 1.57, 0.0]): return
-        time.sleep(1.0)
+        # Place pose
+        if not self._send_and_wait([0.0, -0.0, 1.8326, 1.309, -1.5708, 0.0]): return
+        self.get_logger().info('Successfully moved to drop off arm pose ✅')
+        time.sleep(10)
 
         self.get_logger().info('Sequence complete ✅')
 
