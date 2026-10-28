@@ -13,12 +13,14 @@ class BoxLifecycleCoordinator(Node):
         super().__init__('box_lifecycle_coordinator')
         
         self.subscription = self.create_subscription(String, 'hmi/unified_status',self.box_callback,10)
+        self.completion_subscription = self.create_subscription(Bool, '/hs_arm/sequence_complete', self.sequence_complete_callback, 10)
 
         self.lifecycle_client = self.create_client(
             ChangeState,
             '/hs_arm/change_state'
         )
         self.activation_requested = False
+        self.box_present = False
         self.get_logger().info('Waiting for box detection...')
         self.state_client = self.create_client(
             GetState,
@@ -31,14 +33,21 @@ class BoxLifecycleCoordinator(Node):
             data = json.loads(msg.data)
             box = data["box"]
 
-            if box['weight_raw'] == 0:
+            weight = float(box['weight_raw'].replace(':', '').replace('kg', '').strip())
+            if weight == 0:
+                self.box_present = False
                 return
 
         except (KeyError, TypeError, ValueError):
             return
 
+        if self.box_present:
+            return
+
         if self.activation_requested:
             return
+
+        self.box_present = True
 
         if not self.lifecycle_client.service_is_ready():
             self.get_logger().warn(
@@ -106,6 +115,41 @@ class BoxLifecycleCoordinator(Node):
 
         except Exception as exc:
             self.activation_requested = False
+            self.get_logger().error(str(exc))
+
+    def sequence_complete_callback(self, msg):
+
+        if not msg.data:
+            return
+
+        self.get_logger().info(
+            'Pickup complete. Requesting arm deactivation.'
+        )
+
+        request = ChangeState.Request()
+        request.transition.id = Transition.TRANSITION_DEACTIVATE
+
+        future = self.lifecycle_client.call_async(request)
+        future.add_done_callback(self.deactivation_result)
+
+    def deactivation_result(self, future):
+
+        try:
+            response = future.result()
+
+            if response.success:
+                self.get_logger().info(
+                    'Arm deactivated. Ready for next box.'
+                )
+
+                self.activation_requested = False
+
+            else:
+                self.get_logger().error(
+                    'Arm deactivation failed.'
+                )
+
+        except Exception as exc:
             self.get_logger().error(str(exc))
 
 

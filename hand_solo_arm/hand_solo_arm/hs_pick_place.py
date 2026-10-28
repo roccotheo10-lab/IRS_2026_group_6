@@ -7,6 +7,7 @@ from moveit_msgs.action import MoveGroup
 from moveit_msgs.msg import MotionPlanRequest, Constraints, JointConstraint
 from action_msgs.msg import GoalStatus
 from moveit_msgs.msg import MoveItErrorCodes
+from std_msgs.msg import Bool
 
 class HSWaypointRunner(LifecycleNode):
     """Minimal: define a waypoint, execute, wait; then define the next one."""
@@ -21,6 +22,7 @@ class HSWaypointRunner(LifecycleNode):
         self.get_logger().info('Waiting for MoveGroup action server...')
         self.client.wait_for_server()
         self.get_logger().info('MoveGroup action server ready.')
+        self.completion_publisher = self.create_publisher(Bool, '/hs_arm/sequence_complete', 10)
 
         self.pickup_1 = [
             0.785398, 0.174533, 1.91986,
@@ -51,7 +53,7 @@ class HSWaypointRunner(LifecycleNode):
         self.sequence_index = 0
         self.sequence_running = False
         self.arm_active = False
-
+        self.box_present = False
         self.pending_timer = None
         self.current_goal_handle = None
 
@@ -173,7 +175,8 @@ class HSWaypointRunner(LifecycleNode):
 
             if result.status != GoalStatus.STATUS_SUCCEEDED:
                 self.fail_sequence(
-                    f'MoveIt action failed: {result.status}'
+                    f'MoveIt action failed: {result.status},'
+                    f'MoveIt error: {result.result.error_code.val}'
                 )
                 return
 
@@ -195,11 +198,13 @@ class HSWaypointRunner(LifecycleNode):
 
         
     def finish_sequence(self):
-
         self.sequence_running = False
         self.get_logger().info(
             'Pickup sequence complete! Arm is carrying the box.'
         )
+        msg = Bool()
+        msg.data = True
+        self.completion_publisher.publish(msg)
 
     def fail_sequence(self, message):
         self.sequence_running = False

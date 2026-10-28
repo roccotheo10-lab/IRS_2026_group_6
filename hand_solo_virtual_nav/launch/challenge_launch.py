@@ -195,7 +195,7 @@ def generate_launch_description():
         executable='pineapple_gossip_bot',
         name='gossip_bot',
         namespace='',
-        output='screen',
+        output='log',
     )
 
     # Pineapple listener
@@ -204,7 +204,7 @@ def generate_launch_description():
         executable='plc_hmi_listener',
         name='plc_listener',
         namespace='',
-        output='screen',
+        output='log',
     )
 
     # Arm node
