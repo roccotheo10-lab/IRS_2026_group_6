@@ -89,18 +89,18 @@ controller_server:
       debug_trajectory_details: True
       min_vel_x: 0.0
       min_vel_y: 0.0
-      max_vel_x: 1.2
+      max_vel_x: 1.0
       max_vel_y: 0.0
-      max_vel_theta: 2.0
+      max_vel_theta: 0.5
       min_speed_xy: 0.0
-      max_speed_xy: 1.2
+      max_speed_xy: 1.0
       min_speed_theta: 0.2
-      acc_lim_x: 0.6
+      acc_lim_x: 1.5
       acc_lim_y: 0.0
-      acc_lim_theta: 3.1
-      decel_lim_x: -2.0
+      acc_lim_theta: 0.5
+      decel_lim_x: -1.5
       decel_lim_y: 0.0
-      decel_lim_theta: -4.0
+      decel_lim_theta: -0.5
       vx_samples: 20
       vy_samples: 0
       vtheta_samples: 20
@@ -261,9 +261,9 @@ velocity_smoother:
     feedback: "OPEN_LOOP"
     odom_topic: /virtual_hand_solo/odom
     odom_duration: 0.2
-    max_velocity: [1.2, 0.0, 2.0]
-    min_velocity: [-1.2, 0.0, -2.0]
-    max_accel: [0.6, 0.0, 3.1]
-    max_decel: [-2.0, 0.0, -4.0]
+    max_velocity: [1.0, 0.0, 0.5]
+    min_velocity: [-1.0, 0.0, -0.5]
+    max_accel: [1.5, 0.0, 0.5]
+    max_decel: [-1.5, 0.0, -0.5]
     deadband_velocity: [0.0, 0.0, 0.0]
     velocity_timeout: 1.0
