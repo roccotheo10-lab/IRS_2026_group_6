@@ -97,10 +97,10 @@ controller_server:
       min_speed_theta: 0.2
       acc_lim_x: 0.6
       acc_lim_y: 0.0
-      acc_lim_theta: 6.2
+      acc_lim_theta: 3.1
       decel_lim_x: -2.0
       decel_lim_y: 0.0
-      decel_lim_theta: -6.2
+      decel_lim_theta: -4.0
       vx_samples: 20
       vy_samples: 0
       vtheta_samples: 20
@@ -263,7 +263,7 @@ velocity_smoother:
     odom_duration: 0.2
     max_velocity: [1.2, 0.0, 2.0]
     min_velocity: [-1.2, 0.0, -2.0]
-    max_accel: [0.6, 0.0, 6.2]
-    max_decel: [-2.0, 0.0, -6.2]
+    max_accel: [0.6, 0.0, 3.1]
+    max_decel: [-2.0, 0.0, -4.0]
     deadband_velocity: [0.0, 0.0, 0.0]
     velocity_timeout: 1.0
