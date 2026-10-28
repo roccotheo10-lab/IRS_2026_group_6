@@ -30,7 +30,9 @@ setup(
     },
     entry_points={
         'console_scripts': [
-            'hs_waypoint_follower = hand_solo_virtual_nav.hs_waypoint_follower:main'
+            'hs_waypoint_follower = hand_solo_virtual_nav.hs_waypoint_follower:main',
+            'start_we_want = hand_solo_virtual_nav.start_we_want:main',
+            'box_coordinator = hand_solo_virtual_nav.box_coordinator:main',
         ],
     },
 )

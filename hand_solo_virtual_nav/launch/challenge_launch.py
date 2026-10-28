@@ -4,15 +4,23 @@ from launch_ros.substitutions import FindPackageShare
 from launch.substitutions import PathJoinSubstitution
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
+from launch.actions import EmitEvent, RegisterEventHandler
+from launch_ros.event_handlers import OnStateTransition
+from launch_ros.events.lifecycle import ChangeState
+from lifecycle_msgs.msg import Transition
+from launch.events import matches_action
+from launch.event_handlers import OnProcessStart
 
 def generate_launch_description():
     # Package paths
-    pkg_share = FindPackageShare('hand_solo_virtual_nav')
+    nav_pkg_share = FindPackageShare('hand_solo_virtual_nav')
+    arm_pkg_share = FindPackageShare('hand_solo_arm')
+    status_pkg_share = FindPackageShare('pa_warehouse_status')
 
     # File paths
-    rviz_cfg = PathJoinSubstitution([pkg_share, 'rviz', 'pa_rviz_nav2.rviz'])
-    map_yaml = PathJoinSubstitution([pkg_share, 'map', 'pa_warehouse_map_01.yaml'])
-    nav2_params = PathJoinSubstitution([pkg_share, 'config', 'pa_nav2_params.yaml'])
+    rviz_cfg = PathJoinSubstitution([nav_pkg_share, 'rviz', 'pa_rviz_nav2.rviz'])
+    map_yaml = PathJoinSubstitution([nav_pkg_share, 'map', 'pa_warehouse_map_01.yaml'])
+    nav2_params = PathJoinSubstitution([nav_pkg_share, 'config', 'pa_nav2_params.yaml'])
 
     # Launch arguments (optional - for flexibility)
     use_sim_time = LaunchConfiguration('use_sim_time', default='false')
@@ -21,7 +29,7 @@ def generate_launch_description():
     declare_use_sim_time = DeclareLaunchArgument(
         'use_sim_time',
         default_value='false',
-        description='Use simulation time'
+        description='Use simulation time'   
     )
 
     # Map Server - Lifecycle Node
@@ -119,17 +127,6 @@ def generate_launch_description():
         ]
     )
 
-    # Hand solo waypoint follower node 
-    hs_waypoint_follower = Node( 
-        package='hand_solo_virtual_nav', 
-        executable='hs_waypoint_follower', 
-        name='hs_waypoint_follower_nav2pose', 
-        output='screen', 
-        parameters=[ 
-            {'use_sim_time': use_sim_time} 
-            ] 
-        ) 
-
     # Velocity Smoother - Lifecycle Node
     velocity_smoother = LifecycleNode(
         package='nav2_velocity_smoother',
@@ -190,6 +187,94 @@ def generate_launch_description():
         output='screen'
     )
 
+### ADDED BY US ###
+
+    # Pineapple gossip bot
+    gossip = Node(
+        package="pa_warehouse_status",
+        executable='pineapple_gossip_bot',
+        name='gossip_bot',
+        namespace='',
+        output='screen',
+    )
+
+    # Pineapple listener
+    listener = Node(
+        package="pa_warehouse_status",
+        executable='plc_hmi_listener',
+        name='plc_listener',
+        namespace='',
+        output='screen',
+    )
+
+    # Arm node
+    armnode = LifecycleNode(
+        package='hand_solo_arm',
+        executable='hs_pick_place',
+        name='hs_arm',
+        namespace='',
+        output='screen',
+        parameters=[ 
+            {'use_sim_time': use_sim_time} 
+        ] 
+    )
+    configure_arm = RegisterEventHandler(
+    OnProcessStart(
+        target_action=armnode,
+        on_start=[
+            EmitEvent(
+                event=ChangeState(
+                    lifecycle_node_matcher=matches_action(armnode),
+                    transition_id=Transition.TRANSITION_CONFIGURE
+                )
+            )
+        ]
+    )
+)
+
+
+    # Hand solo waypoint follower node 
+    #hs_waypoint_follower = LifecycleNode( 
+        #package='hand_solo_virtual_nav', 
+        #executable='hs_waypoint_follower', 
+        #name='hs_waypoint_follower_nav2pose', 
+        #namespace='',
+        #output='screen', 
+        #parameters=[ 
+        #    {'use_sim_time': use_sim_time} 
+        #    ] 
+        #) 
+    
+    #configure_hs_waypoint_follower = EmitEvent(
+        #event=ChangeState(
+            #lifecycle_node_matcher=matches_action(hs_waypoint_follower),
+            #transition_id=Transition.TRANSITION_CONFIGURE
+        #)
+    #)
+
+    
+    # start position node
+    start_we_want = Node(
+        package='hand_solo_virtual_nav',
+        executable='start_we_want',
+        name='start_we_want',
+        namespace='',
+        output='screen',
+        parameters=[ 
+            {'use_sim_time': use_sim_time} 
+            ] 
+    )
+
+    # Detect box -> move arm
+    box_coordinator = Node(
+    package='hand_solo_virtual_nav',
+    executable='box_coordinator',
+    name='box_coordinator',
+    namespace='',
+    output='screen'
+)
+
+
     return LaunchDescription([
         # Launch arguments
         declare_use_sim_time,
@@ -209,8 +294,18 @@ def generate_launch_description():
         lifecycle_manager_navigation,
 
         # Hand solo waypoint follower node 
-        hs_waypoint_follower, 
+        #hs_waypoint_follower, 
 
         # Visualization
-        rviz
+        rviz,
+
+        #Pineapple gossip and listener
+        gossip,
+        listener,
+        #arm
+        armnode,
+        configure_arm,
+        box_coordinator,
+        #config waypoint follower
+        #configure_hs_waypoint_follower,
     ])
