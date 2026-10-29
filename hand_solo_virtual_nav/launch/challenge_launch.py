@@ -218,21 +218,10 @@ def generate_launch_description():
             {'use_sim_time': use_sim_time} 
         ] 
     )
-    configure_arm = RegisterEventHandler(
-    OnProcessStart(
-        target_action=armnode,
-        on_start=[
-            EmitEvent(
-                event=ChangeState(
-                    lifecycle_node_matcher=matches_action(armnode),
-                    transition_id=Transition.TRANSITION_CONFIGURE
-                )
-            )
-        ]
-    )
-)
+    
 
 
+    
     # Hand solo waypoint follower node 
     #hs_waypoint_follower = LifecycleNode( 
         #package='hand_solo_virtual_nav', 
@@ -245,13 +234,7 @@ def generate_launch_description():
         #    ] 
         #) 
     
-    #configure_hs_waypoint_follower = EmitEvent(
-        #event=ChangeState(
-            #lifecycle_node_matcher=matches_action(hs_waypoint_follower),
-            #transition_id=Transition.TRANSITION_CONFIGURE
-        #)
-    #)
-
+   
     
     # start position node
     start_we_want = Node(
@@ -274,6 +257,40 @@ def generate_launch_description():
     output='screen'
 )
 
+    configure_arm = RegisterEventHandler(
+    OnProcessStart(
+        target_action=armnode,
+        on_start=[
+            EmitEvent(
+                event=ChangeState(
+                    lifecycle_node_matcher=matches_action(armnode),
+                    transition_id=Transition.TRANSITION_CONFIGURE
+                )
+            )
+        ]
+    )
+)
+
+    #configure_hs_waypoint_follower = EmitEvent(
+        #event=ChangeState(
+            #lifecycle_node_matcher=matches_action(hs_waypoint_follower),
+            #transition_id=Transition.TRANSITION_CONFIGURE
+        #)
+    #)
+
+    activate_hs_waypoint_follower = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=armnode,
+            start_state='deactivating',
+            goal_state='inactive',
+            entities=[
+                EmitEvent(event=ChangeState(
+                    lifecycle_node_matcher=matches_action(hs_waypoint_follower),
+                    transition_id=Transition.TRANSITION_ACTIVATE
+                ))
+            ]
+        )
+    )
 
     return LaunchDescription([
         # Launch arguments
@@ -302,10 +319,15 @@ def generate_launch_description():
         #Pineapple gossip and listener
         gossip,
         listener,
+        
         #arm
         armnode,
         configure_arm,
         box_coordinator,
+        
         #config waypoint follower
         #configure_hs_waypoint_follower,
+
+        #state flow 
+        #activate_hs_waypoint_follower,
     ])
