@@ -44,11 +44,13 @@ class HSWaypointRunner(LifecycleNode):
             1.309, -1.5708, 0.0
         ]
 
-        self.sequence = [
+        self.sequence_pickup = [
             ('Pickup position 1', self.pickup_1, 3.0),
             ('Pickup position 2', self.pickup_2, 3.0),
             ('Carry position', self.carry_pose, 0.0)
         ]
+
+        self.sequence_place = [('Place position', self.place_pose, 1.0)] 
 
         self.sequence_index = 0
         self.sequence_running = False
@@ -56,6 +58,7 @@ class HSWaypointRunner(LifecycleNode):
         self.box_present = False
         self.pending_timer = None
         self.current_goal_handle = None
+        self.place_task = False #Is true when task is to place box on shelf
 
 
     def on_configure(self, state):
@@ -133,11 +136,17 @@ class HSWaypointRunner(LifecycleNode):
         if not self.arm_active:
             return
 
-        if self.sequence_index >= len(self.sequence):
-            self.finish_sequence()
-            return
-
-        name, joints, delay = self.sequence[self.sequence_index]
+        if self.place_task == False
+            if self.sequence_index >= len(self.sequence_pickup):
+                self.finish_sequence()
+                return
+            name, joints, delay = self.sequence_pickup[self.sequence_index]
+        else if self.place_task = True
+            if self.sequence_index >= len(self.sequence_place):
+                self.finish_sequence()
+                return
+            name, joints, delay = self.sequence_place[self.sequence_index]
+        
 
         if not self.client.server_is_ready():
             self.fail_sequence('MoveGroup server unavailable.')
@@ -185,8 +194,10 @@ class HSWaypointRunner(LifecycleNode):
                     f'MoveIt error: {result.result.error_code.val}'
                 )
                 return
-
-            name, joints, delay = self.sequence[self.sequence_index]
+            if self.place_task == False
+                name, joints, delay = self.sequence_pickup[self.sequence_index]
+            else if self.place_task = True
+                name, joints, delay = self.sequence_pickup[self.sequence_index]
 
             self.get_logger().info(f'{name} complete!')
 
@@ -205,6 +216,11 @@ class HSWaypointRunner(LifecycleNode):
         msg = Bool()
         msg.data = True
         self.completion_publisher.publish(msg)
+
+        if self.place_task == False
+            self.place_task = True
+        else if self.place_task == True
+            self.place_task = False
 
     def fail_sequence(self, message):
         self.sequence_running = False
