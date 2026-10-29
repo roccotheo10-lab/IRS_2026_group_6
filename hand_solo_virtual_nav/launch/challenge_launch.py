@@ -292,6 +292,35 @@ def generate_launch_description():
         )
     )
 
+    activate_arm_placing = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=hs_waypoint_follower,
+            start_state='deactivating',
+            goal_state='inactive',
+            entities=[
+                EmitEvent(event=ChangeState(
+                    lifecycle_node_matcher=matches_action(armnode),
+                    transition_id=Transition.TRANSITION_ACTIVATE
+                ))
+            ]
+        )
+    )
+
+    activate_start_we_want = RegisterEventHandler(
+        OnStateTransition(
+            target_lifecycle_node=armnode,
+            start_state='deactivating',
+            goal_state='inactive',
+            entities=[
+                EmitEvent(event=ChangeState(
+                    lifecycle_node_matcher=matches_action(start_we_want),
+                    transition_id=Transition.TRANSITION_ACTIVATE
+                ))
+            ]
+        )
+    )
+    
+
     return LaunchDescription([
         # Launch arguments
         declare_use_sim_time,
@@ -330,4 +359,6 @@ def generate_launch_description():
 
         #state flow 
         #activate_hs_waypoint_follower,
+        #activate_arm_placing,
+        #activate_start_we_want,
     ])
