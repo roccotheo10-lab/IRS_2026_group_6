@@ -189,15 +189,6 @@ def generate_launch_description():
 
 ### ADDED BY US ###
 
-    # Pineapple gossip bot
-    gossip = Node(
-        package="pa_warehouse_status",
-        executable='pineapple_gossip_bot',
-        name='gossip_bot',
-        namespace='',
-        output='log',
-    )
-
     # Pineapple listener
     listener = Node(
         package="pa_warehouse_status",
@@ -219,28 +210,11 @@ def generate_launch_description():
         ] 
     )
     
-
-
-    
-    # Hand solo waypoint follower node 
-    #hs_waypoint_follower = LifecycleNode( 
-        #package='hand_solo_virtual_nav', 
-        #executable='hs_waypoint_follower', 
-        #name='hs_waypoint_follower_nav2pose', 
-        #namespace='',
-        #output='screen', 
-        #parameters=[ 
-        #    {'use_sim_time': use_sim_time} 
-        #    ] 
-        #) 
-    
-   
-    
     # start position node
-    start_we_want = Node(
+    start_we_want = LifecycleNode(
         package='hand_solo_virtual_nav',
         executable='start_we_want',
-        name='start_we_want',
+        name='hs_navigation',
         namespace='',
         output='screen',
         parameters=[ 
@@ -270,6 +244,21 @@ def generate_launch_description():
         ]
     )
 )
+
+    configure_start = RegisterEventHandler(
+    OnProcessStart(
+        target_action=start_we_want,
+        on_start=[
+            EmitEvent(
+                event=ChangeState(
+                    lifecycle_node_matcher=matches_action(start_we_want),
+                    transition_id=Transition.TRANSITION_CONFIGURE
+                )
+            )
+        ]
+    )
+)
+
 
     #configure_hs_waypoint_follower = EmitEvent(
         #event=ChangeState(
@@ -340,19 +329,19 @@ def generate_launch_description():
         lifecycle_manager_navigation,
 
         # Hand solo waypoint follower node 
-        #hs_waypoint_follower, 
 
         # Visualization
         rviz,
 
         #Pineapple gossip and listener
-        gossip,
         listener,
         
         #arm
         armnode,
         configure_arm,
         box_coordinator,
+        start_we_want,
+        configure_start,
         
         #config waypoint follower
         #configure_hs_waypoint_follower,

@@ -89,9 +89,8 @@ class HSWaypointNavigator(LifecycleNode):
         if not self.navigation_active:
             return
 
-        start_pose = self.make_pose(5.5, -0.5, 3.14)
-        #PLACEHOLDER DROP OFF POSE, MUST BE FOUND#
-        end_pose = self.make_pose(2.97, -1.35, 0.174533)
+        start_pose = self.make_pose(5.3, -0.5, 3.14)
+        end_pose = self.make_pose(31.0, -5.0, 4.71238898)
 
         if not self.client.server_is_ready():
             self.fail_navigation('Nav2 server unavailable.')

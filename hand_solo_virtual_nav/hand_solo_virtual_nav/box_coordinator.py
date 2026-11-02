@@ -14,18 +14,70 @@ class BoxLifecycleCoordinator(Node):
         
         self.subscription = self.create_subscription(String, 'hmi/unified_status',self.box_callback,10)
         self.completion_subscription = self.create_subscription(Bool, '/hs_arm/sequence_complete', self.sequence_complete_callback, 10)
-
-        self.lifecycle_client = self.create_client(
-            ChangeState,
-            '/hs_arm/change_state'
-        )
+        self.navigation_completion_subscription = self.create_subscription(Bool, '/hs_navigation/sequence_complete', self.navigation_complete_callback,10)
+        self.lifecycle_client = self.create_client(ChangeState, '/hs_arm/change_state')
+        self.nav_lifecycle_client = self.create_client(ChangeState, '/hs_navigation/change_state')
+        
         self.activation_requested = False
         self.box_present = False
         self.get_logger().info('Waiting for box detection...')
-        self.state_client = self.create_client(
-            GetState,
-            '/hs_arm/get_state'
-        )
+        self.state_client = self.create_client(GetState, '/hs_arm/get_state')
+        self.nav_state_client = self.create_client(GetState, '/hs_navigation/get_state')
+        self.current_state = 'navigate_to_pickup'
+        self.startup_timer = self.create_timer(5.0, self.start_navigation)
+
+    def start_navigation(self):
+        if not self.nav_lifecycle_client.service_is_ready():
+            return
+
+        if not self.nav_state_client.service_is_ready():
+            return
+
+        self.startup_timer.cancel()
+        request = GetState.Request()
+        future = self.nav_state_client.call_async(request)
+        future.add_done_callback(self.check_nav_state)
+
+    def check_nav_state(self, future):
+
+        try:
+            response = future.result()
+
+            if response.current_state.id != State.PRIMARY_STATE_INACTIVE:
+                self.get_logger().warn(
+                    'Nav not ready for activation. '
+                    f'Current state: {response.current_state.label}'
+                )
+                return
+
+            self.get_logger().info(
+                'Nav is inactive. Requesting activation.'
+            )
+            request = ChangeState.Request()
+            request.transition.id = Transition.TRANSITION_ACTIVATE
+            activation_future = self.nav_lifecycle_client.call_async(request)
+            activation_future.add_done_callback(self.nav_activation_result)
+
+        except Exception as exc:
+            self.get_logger().error(str(exc))
+
+    def nav_activation_result(self, future):
+
+        try:
+            response = future.result()
+
+            if response.success:
+                self.get_logger().info(
+                    'Navigation activated successfully'
+                )
+            else:
+                self.get_logger().error(
+                    'Nav activation failed.'
+                )
+
+        except Exception as exc:
+            self.get_logger().error(str(exc))
+
 
     def box_callback(self, msg):
 
@@ -40,14 +92,15 @@ class BoxLifecycleCoordinator(Node):
 
         except (KeyError, TypeError, ValueError):
             return
+        
+        if self.current_state != 'wait_for_box':
+            return
 
         if self.box_present:
             return
 
         if self.activation_requested:
             return
-
-        self.box_present = True
 
         if not self.lifecycle_client.service_is_ready():
             self.get_logger().warn(
@@ -60,6 +113,8 @@ class BoxLifecycleCoordinator(Node):
                 'Arm state service unavailable.'
             )
             return
+        
+        self.box_present = True
 
         # Prevent overlapping lifecycle requests.
         self.activation_requested = True
@@ -107,6 +162,8 @@ class BoxLifecycleCoordinator(Node):
                 self.get_logger().info(
                     'Box detected: arm activated!'
                 )
+                if self.current_state == 'wait_for_box':
+                    self.current_state = 'pickup_box'
             else:
                 self.activation_requested = False
                 self.get_logger().error(
@@ -115,6 +172,49 @@ class BoxLifecycleCoordinator(Node):
 
         except Exception as exc:
             self.activation_requested = False
+            self.get_logger().error(str(exc))
+
+        
+    def navigation_complete_callback(self,msg):
+
+        if not msg.data:
+            return
+        
+        self.get_logger().info('Navigation has been completed')
+
+        request = ChangeState.Request()
+        request.transition.id = Transition.TRANSITION_DEACTIVATE
+        future = self.nav_lifecycle_client.call_async(request)
+        future.add_done_callback(self.nav_deactivation_result)
+
+    def nav_deactivation_result(self, future):
+
+        try:
+            response = future.result()
+
+            if response.success:
+                self.get_logger().info(
+                    'Nav deactivated.'
+                )
+            
+                if self.current_state == 'navigate_to_pickup':
+                    self.current_state = 'wait_for_box'
+                    self.get_logger().info('Arrived at pickup. Waiting for box detection.')
+
+                elif self.current_state == 'navigate_to_dropoff':
+                    self.current_state = 'place_box'
+                    self.get_logger().info('Arrived at drop-off spot. Activating arm for placement.')
+
+                    request = GetState.Request()
+                    future = self.state_client.call_async(request)
+                    future.add_done_callback(self.check_arm_state)
+
+            else:
+                self.get_logger().error(
+                    'Nav deactivation failed.'
+                )
+
+        except Exception as exc:
             self.get_logger().error(str(exc))
 
     def sequence_complete_callback(self, msg):
@@ -139,10 +239,17 @@ class BoxLifecycleCoordinator(Node):
 
             if response.success:
                 self.get_logger().info(
-                    'Arm deactivated. Ready for next box.'
-                )
-
+                    'Arm deactivated. Ready for next box.')
                 self.activation_requested = False
+                if self.current_state == 'pickup_box':
+                    self.current_state = 'navigate_to_dropoff'
+                    self.get_logger().info('Pickup complete. Navigating to drop-off.')
+                    self.start_navigation()
+
+                elif self.current_state == 'place_box':
+                    self.current_state = 'navigate_to_pickup'
+                    self.get_logger().info('Placement complete. Returning to conveyor belt.')
+                    self.start_navigation()
 
             else:
                 self.get_logger().error(
