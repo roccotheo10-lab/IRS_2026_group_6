@@ -231,6 +231,7 @@ def generate_launch_description():
     output='screen'
 )
 
+    # creates an event handeler that on execution of the launch file transitions armnode form unconfigured to inactive
     configure_arm = RegisterEventHandler(
     OnProcessStart(
         target_action=armnode,
@@ -245,6 +246,7 @@ def generate_launch_description():
     )
 )
 
+    # creates an event handeler that on execution of the launch file transitions start_we_want node form unconfigured to inactive
     configure_start = RegisterEventHandler(
     OnProcessStart(
         target_action=start_we_want,
