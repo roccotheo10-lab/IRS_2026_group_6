@@ -11,14 +11,14 @@ from std_msgs.msg import Bool
 class HSWaypointNavigator(LifecycleNode):
     def __init__(self):
         super().__init__('hs_navigation')
-        self.client = ActionClient(self, NavigateToPose, '/navigate_to_pose')
-        self.completion_publisher = self.create_publisher(Bool, '/hs_navigation/sequence_complete', 10)
+        self.client = ActionClient(self, NavigateToPose, '/navigate_to_pose') # creates action client to send goals to NAV2
+        self.completion_publisher = self.create_publisher(Bool, '/hs_navigation/sequence_complete', 10) # for publishing when navigation has finished
 
         self.navigation_running = False
         self.navigation_active = False
         self.pending_timer = None
         self.current_goal_handle = None
-        self.dropoff_task = False # <-- Added for the iteration. True when navigating to drop-off point
+        self.dropoff_task = False # <-- Added for the iteration. True when navigating to drop-off point, False originally (to belt)
 
     def on_configure(self, state):
         self.get_logger().info(
@@ -89,6 +89,7 @@ class HSWaypointNavigator(LifecycleNode):
         if not self.navigation_active:
             return
 
+        # Start and End poses (Start=belt, End=shelf)
         start_pose = self.make_pose(5.3, -0.5, 3.14)
         end_pose = self.make_pose(31.0, -5.0, 4.71238898)
 
@@ -96,26 +97,23 @@ class HSWaypointNavigator(LifecycleNode):
             self.fail_navigation('Nav2 server unavailable.')
             return
 
-#Choose and send the correct navigation goal for the task
+#Choose and send the correct navigation goal for the task based on drop_off variable
         if self.dropoff_task == False:
             start_pose.header.stamp = self.get_clock().now().to_msg()
             goal = NavigateToPose.Goal()
-            goal.pose = start_pose
+            goal.pose = start_pose #Goes to belt pose
         elif self.dropoff_task == True:
             end_pose.header.stamp = self.get_clock().now().to_msg()
-            goal = NavigateToPose.Goal()
-            goal.pose = end_pose
+            goal = NavigateToPose.Goal() 
+            goal.pose = end_pose #Goes to shelf pose
 
         self.get_logger().info('Sending the navigation goal')
-
-        future = self.client.send_goal_async(
-            goal,
-            feedback_callback=self.feedback_cb
-        )
-
+        # sends the navigation goal
+        future = self.client.send_goal_async(goal, feedback_callback=self.feedback_cb)
         future.add_done_callback(self.navigation_response_callback)
 
     def feedback_cb(self, fb):
+        #receive distance feedback
         try:
             dist = fb.feedback.distance_remaining
             self.get_logger().info(f'Distance remaining: {dist:.2f} m')
@@ -123,7 +121,7 @@ class HSWaypointNavigator(LifecycleNode):
             pass  # ignore if feedback doesn't have distance
 
     def navigation_response_callback(self, future):
-
+        # Checks for the goal acceptance
         try:
             handle = future.result()
 
@@ -133,6 +131,7 @@ class HSWaypointNavigator(LifecycleNode):
 
             self.current_goal_handle = handle
 
+            # if accepted, create future variable to recieve the result of the goal execution
             result_future = handle.get_result_async()
             result_future.add_done_callback(self.navigation_result_callback)
 
@@ -140,7 +139,7 @@ class HSWaypointNavigator(LifecycleNode):
             self.fail_navigation(f'Position error: {exc}')
 
     def navigation_result_callback(self, future):
-
+        # receive the result of executing the goal
         try:
             result = future.result()
             self.current_goal_handle = None
@@ -151,7 +150,7 @@ class HSWaypointNavigator(LifecycleNode):
                     f'Nav2 error: {result.result.error_code}'
                 )
                 return
-
+            # Reaches two lines below only if goal was reached
             self.get_logger().info('Navigation goal reached successfully!')
             self.finish_navigation()
 
@@ -163,13 +162,12 @@ class HSWaypointNavigator(LifecycleNode):
         self.navigation_running = False
         msg = Bool()
         msg.data = True
-        self.completion_publisher.publish(msg)
-        self.get_logger().info(
-            'Robot has arrived'
-        )
-        self.dropoff_task = not self.dropoff_task # <-- Added for iteration
+        self.completion_publisher.publish(msg) # publish the success of the navigation
+        self.get_logger().info('Robot has arrived')
+        self.dropoff_task = not self.dropoff_task # <-- Added for iteration. Will flip True/False with every finished navigation
 
     def fail_navigation(self, message):
+        # Handle failure and use get_logger to get the reason
         self.navigation_running = False
         self.current_goal_handle = None
         self.get_logger().error(

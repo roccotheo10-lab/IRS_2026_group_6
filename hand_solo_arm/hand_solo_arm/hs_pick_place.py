@@ -18,12 +18,13 @@ class HSWaypointRunner(LifecycleNode):
 
     def __init__(self):
         super().__init__('hs_arm')
-        self.client = ActionClient(self, MoveGroup, self.ACTION_NAME)
+        self.client = ActionClient(self, MoveGroup, self.ACTION_NAME) # creates action client to send goals to MoveGroup
         self.get_logger().info('Waiting for MoveGroup action server...')
         self.client.wait_for_server()
         self.get_logger().info('MoveGroup action server ready.')
-        self.completion_publisher = self.create_publisher(Bool, '/hs_arm/sequence_complete', 10)
-
+        self.completion_publisher = self.create_publisher(Bool, '/hs_arm/sequence_complete', 10) # for publishing when movement has finished
+        
+        # Defining the joint variables
         self.pickup_1 = [
             0.785398, 0.174533, 1.91986,
             1.0472, -1.5708, 0.0
@@ -44,12 +45,14 @@ class HSWaypointRunner(LifecycleNode):
             1.309, -1.5708, 0.0
         ]
 
+        # Create python list of tuples (pose name, joints values, delay) representing pickup sequence
         self.sequence_pickup = [
             ('Pickup position 1', self.pickup_1, 3.0),
             ('Pickup position 2', self.pickup_2, 3.0),
             ('Carry position', self.carry_pose, 0.0)
         ]
 
+        # Create python list of tuples (pose name, joints values, delay) representing dropoff sequence (one move)
         self.sequence_place = [('Place position', self.place_pose, 1.0)] 
 
         self.sequence_index = 0
@@ -58,7 +61,7 @@ class HSWaypointRunner(LifecycleNode):
         self.box_present = False
         self.pending_timer = None
         self.current_goal_handle = None
-        self.place_task = False #Is true when task is to place box on shelf
+        self.place_task = False # <-- Added for the iteration. True when dropping off box, False originally (pickup sequence)
 
 
     def on_configure(self, state):
@@ -136,12 +139,13 @@ class HSWaypointRunner(LifecycleNode):
         if not self.arm_active:
             return
 
-        if self.place_task == False:
+        # go through all of the goals poses in each sequence          
+        if self.place_task == False: # pickup sequence
             if self.sequence_index >= len(self.sequence_pickup):
                 self.finish_sequence()
                 return
             name, joints, delay = self.sequence_pickup[self.sequence_index]
-        elif self.place_task == True:
+        elif self.place_task == True: #drop off sequence
             if self.sequence_index >= len(self.sequence_place):
                 self.finish_sequence()
                 return
@@ -153,14 +157,13 @@ class HSWaypointRunner(LifecycleNode):
             return
 
         self.get_logger().info(f'Executing {name}...')
-
+        # create goal from the joint variable of one of the poses in the sequence
         goal = self._goal_from_joints(joints)
-
-        future = self.client.send_goal_async(goal)
+        future = self.client.send_goal_async(goal) #send the goal to MoveGroup
         future.add_done_callback(self.goal_response_callback)
 
     def goal_response_callback(self, future):
-
+        # Receive response for goal acceptance/rejection
         try:
             handle = future.result()
 
@@ -169,7 +172,7 @@ class HSWaypointRunner(LifecycleNode):
                 return
 
             self.current_goal_handle = handle
-
+            # If accepted, creates future object to receive execution result of arm movement
             result_future = handle.get_result_async()
             result_future.add_done_callback(self.goal_result_callback)
 
@@ -177,7 +180,7 @@ class HSWaypointRunner(LifecycleNode):
             self.fail_sequence(f'Goal error: {exc}')
 
     def goal_result_callback(self, future):
-
+        # method receives result of arm move execution
         try:
             result = future.result()
             self.current_goal_handle = None
@@ -194,13 +197,13 @@ class HSWaypointRunner(LifecycleNode):
                     f'MoveIt error: {result.result.error_code.val}'
                 )
                 return
+            # If a pose was successful, the name is printed in the CLI
             if self.place_task == False:
                 name, joints, delay = self.sequence_pickup[self.sequence_index]
             elif self.place_task == True:
                 name, joints, delay = self.sequence_place[self.sequence_index]
-
             self.get_logger().info(f'{name} complete!')
-
+            # Goes to next index of one of the sequence lists
             self.sequence_index += 1
             self.schedule_next_move(delay if delay > 0 else 0.1)
 
@@ -211,16 +214,16 @@ class HSWaypointRunner(LifecycleNode):
     def finish_sequence(self):
         self.sequence_running = False
         self.get_logger().info(
-            'Pickup sequence complete! Arm is carrying the box.'
+            'Arm movement is complete'
         )
         msg = Bool()
         msg.data = True
-        self.completion_publisher.publish(msg)
+        self.completion_publisher.publish(msg) # Publish the success of an arm move sequence
 
-        # Toggle task between pickup and place for the next activation
-        self.place_task = not self.place_task
+        self.place_task = not self.place_task # <-- Added for iteration. Will flip True/False with every finished arm move
 
     def fail_sequence(self, message):
+        # Handle failure and use get_logger to get the reason
         self.sequence_running = False
         self.get_logger().error(
             f'Arm sequence stopped: {message}'
