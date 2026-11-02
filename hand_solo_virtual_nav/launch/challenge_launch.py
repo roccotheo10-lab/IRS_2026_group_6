@@ -14,8 +14,7 @@ from launch.event_handlers import OnProcessStart
 def generate_launch_description():
     # Package paths
     nav_pkg_share = FindPackageShare('hand_solo_virtual_nav')
-    arm_pkg_share = FindPackageShare('hand_solo_arm')
-    status_pkg_share = FindPackageShare('pa_warehouse_status')
+    arm_pkg_share = FindPackageShare('hand_solo_arm') 
 
     # File paths
     rviz_cfg = PathJoinSubstitution([nav_pkg_share, 'rviz', 'pa_rviz_nav2.rviz'])
@@ -189,15 +188,6 @@ def generate_launch_description():
 
 ### ADDED BY US ###
 
-    # Pineapple listener
-    listener = Node(
-        package="pa_warehouse_status",
-        executable='plc_hmi_listener',
-        name='plc_listener',
-        namespace='',
-        output='log',
-    )
-
     # Arm node
     armnode = LifecycleNode(
         package='hand_solo_arm',
@@ -259,55 +249,6 @@ def generate_launch_description():
     )
 )
 
-
-    #configure_hs_waypoint_follower = EmitEvent(
-        #event=ChangeState(
-            #lifecycle_node_matcher=matches_action(hs_waypoint_follower),
-            #transition_id=Transition.TRANSITION_CONFIGURE
-        #)
-    #)
-
-    #activate_hs_waypoint_follower = RegisterEventHandler(
-        #OnStateTransition(
-            #target_lifecycle_node=armnode,
-            #start_state='deactivating',
-            #goal_state='inactive',
-            #entities=[
-                #EmitEvent(event=ChangeState(
-                    #lifecycle_node_matcher=matches_action(hs_waypoint_follower),
-                   # transition_id=Transition.TRANSITION_ACTIVATE
-                #))
-            #]
-        #)
-    #)
-
-    #activate_arm_placing = RegisterEventHandler(
-        #OnStateTransition(
-            #target_lifecycle_node=hs_waypoint_follower,
-            #start_state='deactivating',
-            #goal_state='inactive',
-            #entities=[
-                #EmitEvent(event=ChangeState(
-                    #lifecycle_node_matcher=matches_action(armnode),
-                    #transition_id=Transition.TRANSITION_ACTIVATE
-                #))
-            #]
-        #)
-    #)
-
-    #activate_start_we_want = RegisterEventHandler(
-        #OnStateTransition(
-            #target_lifecycle_node=armnode,
-            #start_state='deactivating',
-            #goal_state='inactive',
-            #entities=[
-                #EmitEvent(event=ChangeState(
-                    #lifecycle_node_matcher=matches_action(start_we_want),
-                    #transition_id=Transition.TRANSITION_ACTIVATE
-                #))
-            #]
-        #)
-    #)
     
 
     return LaunchDescription([
@@ -328,13 +269,8 @@ def generate_launch_description():
         velocity_smoother,
         lifecycle_manager_navigation,
 
-        # Hand solo waypoint follower node 
-
         # Visualization
         rviz,
-
-        #Pineapple gossip and listener
-        listener,
         
         #arm
         armnode,
@@ -343,11 +279,4 @@ def generate_launch_description():
         start_we_want,
         configure_start,
         
-        #config waypoint follower
-        #configure_hs_waypoint_follower,
-
-        #state flow 
-        #activate_hs_waypoint_follower,
-        #activate_arm_placing,
-        #activate_start_we_want,
     ])
