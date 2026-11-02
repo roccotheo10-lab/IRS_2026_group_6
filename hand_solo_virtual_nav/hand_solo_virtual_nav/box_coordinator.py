@@ -93,7 +93,7 @@ class BoxLifecycleCoordinator(Node):
             box = data["box"]
             # Stripping unnecessary information is needed
             weight = float(box['weight_raw'].replace(':', '').replace('kg', '').strip())
-            if weight == 0:
+            if weight <= 0:
                 self.box_present = False
                 return
 

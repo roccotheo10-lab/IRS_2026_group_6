@@ -90,7 +90,7 @@ class HSWaypointNavigator(LifecycleNode):
             return
 
         # Start and End poses (Start=belt, End=shelf)
-        start_pose = self.make_pose(5.3, -0.5, 3.14)
+        start_pose = self.make_pose(5.15, -0.5, 3.14)
         end_pose = self.make_pose(31.0, -5.0, 4.71238898)
 
         if not self.client.server_is_ready():
