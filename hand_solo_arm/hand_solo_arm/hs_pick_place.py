@@ -26,12 +26,12 @@ class HSWaypointRunner(LifecycleNode):
         
         # Defining the joint variables
         self.pickup_1 = [
-            0.785398, 0.174533, 1.91986,
+            0.785398, 0.523599, 1.5708,
             1.0472, -1.5708, 0.0
         ]
 
         self.pickup_2 = [
-            -0.349066, 0.174533, 1.91986,
+            -0.349066, 0.698132, 1.39626,
             1.0472, -1.5708, 0.0
         ]
 
@@ -53,7 +53,7 @@ class HSWaypointRunner(LifecycleNode):
         ]
 
         # Create python list of tuples (pose name, joints values, delay) representing dropoff sequence (one move)
-        self.sequence_place = [('Place position', self.place_pose, 1.0)] 
+        self.sequence_place = [('Place position', self.place_pose, 1.0),('Carry position', self.carry_pose, 0.0)] 
 
         self.sequence_index = 0
         self.sequence_running = False
